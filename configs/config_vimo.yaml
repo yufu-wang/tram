@@ -1,0 +1,56 @@
+LOGDIR: ''
+DEVICE: 'cuda'
+OUTPUT_DIR: 'results'
+NUM_WORKERS: 15
+SEED_VALUE: 0
+IMG_RES: 256
+
+DATASET:
+  LIST: ['3dpw_vid', 'h36m', 'bedlam_vid']
+  PARTITION: [0.165, 0.165, 0.67]
+  SEQ_LEN: 16
+  TEST: 'emdb_1'
+
+LOSS:
+  KPT2D: 5.0
+  KPT3D: 5.0
+  SMPL: 1.0
+  V3D: 1.0
+
+
+TRAIN:
+  RESUME: None
+  LOAD_LATEST: True
+  BATCH_SIZE: 24
+  MULTI_LR: True
+  LR: 1e-5
+  LR2: 3e-5
+  WARMUP_STEPS: 3000
+  SUMMARY_STEP: 50
+  VALID_STEP: 250
+  SAVE_STEP: 1000
+  MAX_STEP: 250000
+  GAMMA: 1
+  UPDATE_ITER: 1
+  CLIP_GRADIENT: True
+  CLIP_NORM: 1.0
+  WD: 0.01
+  OPT: 'AdamW'
+  LOSS_SCALE: 1
+ 
+
+MODEL:
+  CHECKPOINT: 'data/pretrain/hmr2b/epoch=35-step=1000000.ckpt'
+  ST_MODULE: True
+  MOTION_MODULE: True
+  ST_HDIM: 512
+  MOTION_HDIM: 384
+  ST_NLAYER: 6
+  MOTION_NLAYER: 6
+
+
+EXP_NAME: 'hmr_vimo'
+COMMENT:
+  'Default hmr_vimo configs.'
+
+
