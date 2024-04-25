@@ -1,9 +1,6 @@
 [submodule "thirdparty/DROID-SLAM/thirdparty/lietorch"]
 	path = thirdparty/DROID-SLAM/thirdparty/lietorch
 	url = https://github.com/princeton-vl/lietorch
-[submodule "thirdparty/DROID-SLAM/thirdparty/eigen"]
-	path = thirdparty/DROID-SLAM/thirdparty/eigen
-	url = https://github.com/libigl/eigen
 [submodule "thirdparty/Tracking-Anything-with-DEVA"]
 	path = thirdparty/Tracking-Anything-with-DEVA
 	url = https://github.com/hkchengrex/Tracking-Anything-with-DEVA
