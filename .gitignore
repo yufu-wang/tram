@@ -5,7 +5,9 @@ data/pretrain/*.pth
 data/pretrain/*.pth.tar
 data/smpl/SMPL_*.pkl
 *.mov
+*.mp4
 example_video/
+results/
 
 # Byte-compiled / optimized / DLL files
 __pycache__/

@@ -99,7 +99,7 @@ def detect_segment_track(imgfiles, out_path, thresh=0.5, min_size=None,
                 masks = masks.cpu().squeeze(1)
                 mask = masks.sum(dim=0)
         else:
-            mask = np.zeros(img_cv2.shape[0:2])
+            mask = np.zeros_like(mask)
 
         ### --- DEVA ---
         if len(boxes)>0 and (boxes[:, -1] > 0.80).sum()>0:

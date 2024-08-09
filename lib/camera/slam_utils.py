@@ -1,26 +1,14 @@
-import sys
-sys.path.insert(0, 'thirdparty/DROID-SLAM/droid_slam')
-sys.path.insert(0, 'thirdparty/DROID-SLAM')
-
-from tqdm import tqdm
 import numpy as np
 import torch
-import os
-import argparse
-from PIL import Image
 import cv2
 from glob import glob
-
-from droid import Droid
-from torch.multiprocessing import Process
+import argparse
 
 import evo
 from evo.core.trajectory import PoseTrajectory3D
-from evo.tools import file_interface
 from evo.core import sync
 import evo.main_ape as main_ape
 from evo.core.metrics import PoseRelation
-from pycocotools import mask as masktool
 from torchvision.transforms import Resize
 
 # Some default settings for DROID-SLAM
@@ -49,11 +37,10 @@ parser.add_argument("--backend_radius", type=int, default=2)
 parser.add_argument("--backend_nms", type=int, default=3)
 parser.add_argument("--upsample", action="store_true")
 parser.add_argument("--reconstruction_path", help="path to saved reconstruction")
-args = parser.parse_args([])
-args.stereo = False
-args.upsample = True
-args.disable_vis = True
-torch.multiprocessing.set_start_method('spawn')
+slam_args = parser.parse_args([])
+slam_args.stereo = False
+slam_args.upsample = True
+slam_args.disable_vis = True
 
 
 def est_calib(imagedir):
@@ -83,7 +70,7 @@ def get_dimention(imagedir):
     return H, W
 
 
-def image_stream(imagedir, calib, stride, max_frame=None):
+def image_stream(imagedir, calib, stride=1, max_frame=None):
     """ Image generator for DROID """
     fx, fy, cx, cy = calib[:4]
 
@@ -118,34 +105,25 @@ def image_stream(imagedir, calib, stride, max_frame=None):
         yield t, image[None], intrinsics
 
 
-def run_slam(imagedir, masks, calib=None, depth=None, stride=1,  
-             filter_thresh=2.4, disable_vis=True):
-    """ Maksed DROID-SLAM """
-    droid = None
-    depth = None
-    args.filter_thresh = filter_thresh
-    args.disable_vis = disable_vis
-    masks = masks[::stride]
+def preprocess_masks(img_folder, masks):
+    """ Resize masks for masked droid """
+    H, W = get_dimention(img_folder)
+    resize_1 = Resize((H, W), antialias=True)
+    resize_2 = Resize((H//8, W//8), antialias=True)
+    
+    img_msks = []
+    for i in range(0, len(masks), 500):
+        m = resize_1(masks[i:i+500])
+        img_msks.append(m)
+    img_msks = torch.cat(img_msks)
 
-    img_msks, conf_msks = preprocess_masks(imagedir, masks)
-    if calib is None:
-        calib = est_calib(imagedir)
+    conf_msks = []
+    for i in range(0, len(masks), 500):
+        m = resize_2(masks[i:i+500])
+        conf_msks.append(m)
+    conf_msks = torch.cat(conf_msks)
 
-    for (t, image, intrinsics) in tqdm(image_stream(imagedir, calib, stride)):
-
-        if droid is None:
-            args.image_size = [image.shape[2], image.shape[3]]
-            droid = Droid(args)
-        
-        img_msk = img_msks[t]
-        conf_msk = conf_msks[t]
-        image = image * (img_msk < 0.5)
-
-        droid.track(t, image, intrinsics=intrinsics, depth=depth, mask=conf_msk)  
-
-    traj = droid.terminate(image_stream(imagedir, calib, stride))
-
-    return droid, traj
+    return img_msks, conf_msks
 
 
 def eval_slam(traj_est, cam_t, cam_q, return_traj=True, correct_scale=False, align=True, align_origin=False):
@@ -173,83 +151,3 @@ def eval_slam(traj_est, cam_t, cam_q, return_traj=True, correct_scale=False, ali
         return stats, traj_ref, traj_est
     
     return stats
-
-
-def test_slam(imagedir, img_msks, conf_msks, calib, stride=10, max_frame=50):
-    """ Shorter SLAM step to test reprojection error """
-    args = parser.parse_args([])
-    args.stereo = False
-    args.upsample = False
-    args.disable_vis = True
-    args.frontend_window = 10
-    args.frontend_thresh = 10
-    droid = None
-
-    for (t, image, intrinsics) in image_stream(imagedir, calib, stride, max_frame):
-        if droid is None:
-            args.image_size = [image.shape[2], image.shape[3]]
-            droid = Droid(args)
-        
-        img_msk = img_msks[t]
-        conf_msk = conf_msks[t]
-        image = image * (img_msk < 0.5)
-        droid.track(t, image, intrinsics=intrinsics, mask=conf_msk)  
-
-    reprojection_error = droid.compute_error()
-    del droid
-
-    return reprojection_error
-
-
-def search_focal_length(img_folder, masks, stride=10, max_frame=50,
-                        low=500, high=1500, step=100):
-    """ Search for a good focal length by SLAM reprojection error """
-    masks = masks[::stride]
-    masks = masks[:max_frame]
-    img_msks, conf_msks = preprocess_masks(img_folder, masks)
-
-    # default estimate
-    calib = np.array(est_calib(img_folder))
-    best_focal = calib[0]
-    best_err = test_slam(img_folder, img_msks, conf_msks, 
-                         stride=stride, calib=calib, max_frame=max_frame)
-    
-    # search based on slam reprojection error
-    for focal in range(low, high, step):
-        calib[:2] = focal
-        err = test_slam(img_folder, img_msks, conf_msks, 
-                        stride=stride, calib=calib, max_frame=max_frame)
-
-        if err < best_err:
-            best_err = err
-            best_focal = focal
-            
-    print('Best focal length:', best_focal)
-
-    return best_focal
-
-
-def preprocess_masks(img_folder, masks):
-    """ Resize masks for masked droid """
-    H, W = get_dimention(img_folder)
-    resize_1 = Resize((H, W), antialias=True)
-    resize_2 = Resize((H//8, W//8), antialias=True)
-    
-    img_msks = []
-    for i in range(0, len(masks), 500):
-        m = resize_1(masks[i:i+500])
-        img_msks.append(m)
-    img_msks = torch.cat(img_msks)
-
-    conf_msks = []
-    for i in range(0, len(masks), 500):
-        m = resize_2(masks[i:i+500])
-        conf_msks.append(m)
-    conf_msks = torch.cat(conf_msks)
-
-    return img_msks, conf_msks
-
-
-
-
-

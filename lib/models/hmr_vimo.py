@@ -9,82 +9,12 @@ from lib.utils.geometry import perspective_projection
 from lib.utils.geometry import rot6d_to_rotmat_hmr2 as rot6d_to_rotmat
 from lib.datasets.track_dataset import TrackDataset
 
-from .vit import vit_base, vit_huge
-from .components.pose_transformer import TransformerDecoder
+from .vit import vit_huge
+from .modules import *
 from .smpl import SMPL
+from ..pipeline.tools import parse_chunks
 
-if torch.cuda.is_available():
-    autocast = torch.cuda.amp.autocast
-    print('Using autocast')
-else:
-    # dummy GradScaler for PyTorch < 1.6 OR no cuda
-    class autocast:
-        def __init__(self, enabled=True):
-            pass
-        def __enter__(self):
-            pass
-        def __exit__(self, *args):
-            pass
-
-class SMPLTransformerDecoderHead(nn.Module):
-    """ HMR2 Cross-attention based SMPL Transformer decoder
-    """
-    def __init__(self, ):
-        super().__init__()
-        transformer_args = dict(
-            depth = 6,  # originally 6
-            heads = 8,
-            mlp_dim = 1024,
-            dim_head = 64,
-            dropout = 0.0,
-            emb_dropout = 0.0,
-            norm = "layer",
-            context_dim = 1280,
-            num_tokens = 1,
-            token_dim = 1,
-            dim = 1024
-            )
-        self.transformer = TransformerDecoder(**transformer_args)
-
-        dim = 1024
-        npose = 24*6
-        self.decpose = nn.Linear(dim, npose)
-        self.decshape = nn.Linear(dim, 10)
-        self.deccam = nn.Linear(dim, 3)
-        nn.init.xavier_uniform_(self.decpose.weight, gain=0.01)
-        nn.init.xavier_uniform_(self.decshape.weight, gain=0.01)
-        nn.init.xavier_uniform_(self.deccam.weight, gain=0.01)
-
-        mean_params = np.load('data/smpl/smpl_mean_params.npz')
-        init_body_pose = torch.from_numpy(mean_params['pose'].astype(np.float32)).unsqueeze(0)
-        init_betas = torch.from_numpy(mean_params['shape'].astype('float32')).unsqueeze(0)
-        init_cam = torch.from_numpy(mean_params['cam'].astype(np.float32)).unsqueeze(0)
-        self.register_buffer('init_body_pose', init_body_pose)
-        self.register_buffer('init_betas', init_betas)
-        self.register_buffer('init_cam', init_cam)
-
-        
-    def forward(self, x, **kwargs):
-
-        batch_size = x.shape[0]
-        # vit pretrained backbone is channel-first. Change to token-first
-        x = einops.rearrange(x, 'b c h w -> b (h w) c')
-
-        init_body_pose = self.init_body_pose.expand(batch_size, -1)
-        init_betas = self.init_betas.expand(batch_size, -1)
-        init_cam = self.init_cam.expand(batch_size, -1)
-
-        # Pass through transformer
-        token = torch.zeros(batch_size, 1, 1).to(x.device)
-        token_out = self.transformer(token, context=x)
-        token_out = token_out.squeeze(1) # (B, C)
-
-        # Readout from token_out
-        pred_pose = self.decpose(token_out)  + init_body_pose
-        pred_shape = self.decshape(token_out)  + init_betas
-        pred_cam = self.deccam(token_out)  + init_cam
-
-        return pred_pose, pred_shape, pred_cam
+autocast = torch.cuda.amp.autocast
 
 
 class HMR_VIMO(nn.Module):
@@ -111,7 +41,6 @@ class HMR_VIMO(nn.Module):
                                                 hdim=hdim,
                                                 nlayer=nlayer,
                                                 residual=True)
-            print(f'Using Temporal Attention space-time: {nlayer} layers {hdim} dim.')
         else:
             self.st_module = None
 
@@ -124,7 +53,6 @@ class HMR_VIMO(nn.Module):
                                                     hdim=hdim,
                                                     nlayer=nlayer,
                                                     residual=False)
-            print(f'Using Temporal Attention motion layer: {nlayer} layers {hdim} dim.')
         else:
             self.motion_module = None
 
@@ -203,7 +131,52 @@ class HMR_VIMO(nn.Module):
         return out, iter_preds
     
 
-    def inference(self, imgfiles, boxes, img_focal, img_center, device='cuda'):
+    def inference(self, imgfiles, boxes, img_focal=None, img_center=None, valid=None, frame=None, device='cuda'):
+        nfile = len(imgfiles)
+        if valid is None:
+            valid = np.ones(nfile, dtype=bool)
+        if frame is None:
+            frame = np.arange(nfile)
+        
+        if isinstance(imgfiles, list):
+            imgfiles = np.array(imgfiles)
+
+        frame = frame[valid]
+        boxes = boxes[valid]
+        frame_chunks, boxes_chunks = parse_chunks(frame, boxes, min_len=16)
+
+        if len(frame_chunks) == 0:
+            return
+
+        pred_cam = []
+        pred_pose = []
+        pred_shape = []
+        pred_rotmat = []
+        pred_trans = []
+        frame = []
+
+        for frame_ck, boxes_ck in zip(frame_chunks, boxes_chunks):
+            img_ck = imgfiles[frame_ck]
+            results = self.inference_chunk(img_ck, boxes_ck, img_focal=img_focal, img_center=img_center)
+
+            pred_cam.append(results['pred_cam'])
+            pred_pose.append(results['pred_pose'])
+            pred_shape.append(results['pred_shape'])
+            pred_rotmat.append(results['pred_rotmat'])
+            pred_trans.append(results['pred_trans'])
+            frame.append(torch.from_numpy(frame_ck))
+
+        results = {'pred_cam': torch.cat(pred_cam),
+                'pred_pose': torch.cat(pred_pose),
+                'pred_shape': torch.cat(pred_shape),
+                'pred_rotmat': torch.cat(pred_rotmat),
+                'pred_trans': torch.cat(pred_trans),
+                'frame': torch.cat(frame)}
+        
+        return results
+
+
+    def inference_chunk(self, imgfiles, boxes, img_focal, img_center, device='cuda'):
         db = TrackDataset(imgfiles, boxes, img_focal=img_focal, 
                         img_center=img_center, normalization=True, dilate=1.2)
 
@@ -364,57 +337,3 @@ class HMR_VIMO(nn.Module):
 
         return
 
-
-
-class temporal_attention(nn.Module):
-    def __init__(self, in_dim=1280, out_dim=1280, hdim=512, nlayer=6, nhead=4, residual=False):
-        super(temporal_attention, self).__init__()
-        self.hdim = hdim
-        self.out_dim = out_dim
-        self.residual = residual
-        self.l1 = nn.Linear(in_dim, hdim)
-        self.l2 = nn.Linear(hdim, out_dim)
-
-        self.pos_embedding = PositionalEncoding(hdim, dropout=0.1)
-        TranLayer = nn.TransformerEncoderLayer(d_model=hdim, nhead=nhead, dim_feedforward=1024,
-                                               dropout=0.1, activation='gelu')
-        self.trans = nn.TransformerEncoder(TranLayer, num_layers=nlayer)
-        
-        nn.init.xavier_uniform_(self.l1.weight, gain=0.01)
-        nn.init.xavier_uniform_(self.l2.weight, gain=0.01)
-
-    def forward(self, x):
-        x = x.permute(1,0,2)  # (b,t,c) -> (t,b,c)
-
-        h = self.l1(x)
-        h = self.pos_embedding(h)
-        h = self.trans(h)
-        h = self.l2(h)
-
-        if self.residual:
-            x = x[..., :self.out_dim] + h
-        else:
-            x = h
-        x = x.permute(1,0,2)
-
-        return x
-
-    
-class PositionalEncoding(nn.Module):
-    def __init__(self, d_model, dropout=0.1, max_len=100):
-        super(PositionalEncoding, self).__init__()
-        self.dropout = nn.Dropout(p=dropout)
-
-        pe = torch.zeros(max_len, d_model)
-        position = torch.arange(0, max_len, dtype=torch.float).unsqueeze(1)
-        div_term = torch.exp(torch.arange(0, d_model, 2).float() * (-np.log(10000.0) / d_model))
-        pe[:, 0::2] = torch.sin(position * div_term)
-        pe[:, 1::2] = torch.cos(position * div_term)
-        pe = pe.unsqueeze(0).transpose(0, 1)
-        
-        self.register_buffer('pe', pe)
-
-    def forward(self, x):
-        # not used in the final model
-        x = x + self.pe[:x.shape[0], :]
-        return self.dropout(x)

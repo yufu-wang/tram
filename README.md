@@ -39,21 +39,19 @@ bash scripts/download_models.sh
 This project integrates the complete 4D human system, including tracking, slam, and 4D human capture in the world space. We separate the core functionalities into different scripts, which should be run **sequentially**. Each step will save its result to be used by the next step. All results will be saved in a folder with the same name as the video.
 
 ```bash
-# 1. Run detection, segmentation and multi-person tracking
-python scripts/detect_track_video.py --video "./example_video.mov" --visualization
+# 1. Run Masked Droid SLAM (also detect+track humans in this step)
+python scripts/estimate_camera.py --video "./example_video.mov" 
+# -- You can indicate if the camera is static. The algorithm will try to catch it as well.
+python scripts/estimate_camera.py --video "./another_video.mov" --static_camera
 
-# 2. Run Masked DROID-SLAM. 
-python scripts/slam_video.py --video "./example_video.mov" --img_focal 600  # if you know the focal (e.g. 600)
-# -- or
-python scripts/slam_video.py --video "./example_video.mov"  # it will estimate a focal length
+# 2. Run 4D human capture with VIMO.
+python scripts/estimate_humans.py --video "./example_video.mov"
 
-# 3. Run 4D human capture with VIMO.
-python scripts/vimo_video.py --video "./example_video.mov"
-
-# 4. Put everything together. Render the output video.
-python scripts/tram_video.py --video "./example_video.mov"
+# 3. Put everything together. Render the output video.
+python scripts/visualize_tram.py --video "./example_video.mov"
 ```
-For example, running the above four scripts on the provided video `./example_video.mov` will create a folder `./exapmle_video` and save all results in it.
+
+Running the above three scripts on the provided video `./example_video.mov` will create a folder `./results/exapmle_video` and save all results in it. Please see available arguments in the scripts.
 
 
 

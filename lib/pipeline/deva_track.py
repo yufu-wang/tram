@@ -21,7 +21,7 @@ from deva.inference.demo_utils import get_input_frame_for_deva
 # Some DEVA tracking settings
 args = ['--chunk_size', '4', '--amp', '--temporal_setting', 'semionline',
         '--size', '480', '--model', 'data/pretrain/DEVA-propagation.pth',
-        '--suppress_small_objects', '--max_long_term_elements', '1000', '--max_num_objects', '20',
+        '--suppress_small_objects', '--max_long_term_elements', '1000', '--max_num_objects', '50',
         '--detection_every', '5']
 
 parser = ArgumentParser()
