@@ -27,7 +27,7 @@ class PoseTrajectoryFiller:
         self.MEAN = torch.as_tensor([0.485, 0.456, 0.406], device=self.device)[:, None, None]
         self.STDV = torch.as_tensor([0.229, 0.224, 0.225], device=self.device)[:, None, None]
         
-    @torch.cuda.amp.autocast(enabled=True)
+    @torch.amp.autocast('cuda', enabled=True)
     def __feature_encoder(self, image):
         """ features for correlation volume """
         return self.fnet(image)

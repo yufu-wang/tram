@@ -14,7 +14,7 @@ from .modules import *
 from .smpl import SMPL
 from ..pipeline.tools import parse_chunks
 
-autocast = torch.cuda.amp.autocast
+autocast = torch.amp.autocast
 
 
 class HMR_VIMO(nn.Module):
@@ -74,7 +74,7 @@ class HMR_VIMO(nn.Module):
         bbox_info = self.bbox_est(center, scale, img_focal, img_center)
 
         # backbone
-        with autocast():
+        with autocast('cuda'):
             feature = self.backbone(image[:,:,:,32:-32])
             feature = feature.float()
 

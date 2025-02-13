@@ -32,6 +32,7 @@ rm -rf data/smpl/smpl.zip
 wget -P ./data/pretrain/ https://github.com/hkchengrex/Tracking-Anything-with-DEVA/releases/download/v1.0/DEVA-propagation.pth
 wget -P ./data/pretrain/ https://dl.fbaipublicfiles.com/segment_anything/sam_vit_h_4b8939.pth
 gdown --fuzzy -O ./data/pretrain/droid.pth https://drive.google.com/file/d/1PpqVt1H4maBa_GbPJp4NwxRsd9jk-elh/view?usp=sharing
+gdown --fuzzy -O ./data/pretrain/camcalib_sa_biased_l2.ckpt https://drive.google.com/file/d/1t4tO0OM5s8XDvAzPW-5HaOkQuV3dHBdO/view?usp=sharing
 
 # Our checkpoint and an example video
 gdown --fuzzy -O ./data/pretrain/vimo_checkpoint.pth.tar https://drive.google.com/file/d/1fdeUxn_hK4ERGFwuksFpV_-_PHZJuoiW/view?usp=share_link

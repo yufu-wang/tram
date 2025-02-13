@@ -13,7 +13,7 @@ from lib.pipeline.deva_track import get_deva_tracker, track_with_mask, flush_buf
 
 
 if torch.cuda.is_available():
-    autocast = torch.cuda.amp.autocast
+    autocast = torch.amp.autocast
 else:
     class autocast:
         def __init__(self, enabled=True):
@@ -71,7 +71,7 @@ def detect_segment_track(imgfiles, out_path, thresh=0.5, min_size=None,
 
         ### --- Detection ---
         with torch.no_grad():
-            with autocast():
+            with autocast('cuda'):
                 det_out = detector(img_cv2)
                 det_instances = det_out['instances']
                 valid_idx = (det_instances.pred_classes==0) & (det_instances.scores > thresh)
@@ -83,7 +83,7 @@ def detect_segment_track(imgfiles, out_path, thresh=0.5, min_size=None,
 
         ### --- SAM --- 
         if len(boxes)>0:
-            with autocast():
+            with autocast('cuda'):
                 predictor.set_image(img_cv2, image_format='BGR')
 
                 # multiple boxes
@@ -110,7 +110,7 @@ def detect_segment_track(imgfiles, out_path, thresh=0.5, min_size=None,
             masks_track = torch.zeros([1,img_cv2.shape[0],img_cv2.shape[1]])
             scores_track = torch.zeros([1])
 
-        with autocast():
+        with autocast('cuda'):
             img_rgb = cv2.cvtColor(img_cv2, cv2.COLOR_BGR2RGB)
             track_with_mask(deva, masks_track, scores_track, img_rgb, 
                             imgpath, result_saver, t, save_vos)
@@ -120,7 +120,7 @@ def detect_segment_track(imgfiles, out_path, thresh=0.5, min_size=None,
         masks_.append(mask_bit)
         boxes_.append(boxes)
 
-    with autocast():
+    with autocast('cuda'):
         flush_buffer(deva, result_saver)
     result_saver.end()
 

@@ -8,6 +8,9 @@ Official implementation for the paper: \
 
 <img src="https://github.com/yufu-wang/tram/assets/26578575/e857366a-4b51-42ff-bd16-07d800455015" width="550">
 
+## Updates
+- [2025/02] Update with better gravity & floor prediction. Add EMDB evaluation.
+- [2024/04] Initial release.
 
 ## Installation
 1. Clone this repo with the `--recursive` flag.
@@ -30,7 +33,7 @@ cd ../..
 ## Prepare data
 Register at [SMPLify](https://smplify.is.tue.mpg.de) and [SMPL](https://smpl.is.tue.mpg.de), whose usernames and passwords will be used by our script to download the SMPL models. In addition, we will fetch trained checkpoints and an example video. Note that thirdparty models have their own licenses. 
 
-Run the following to fetch all models and checkpoints to `data/`
+Run the following to fetch all models and checkpoints to `data/`. It also downloads `example_video.mov` for the demo.
 ```Bash
 bash scripts/download_models.sh
 ```
@@ -54,9 +57,24 @@ python scripts/visualize_tram.py --video "./example_video.mov"
 Running the above three scripts on the provided video `./example_video.mov` will create a folder `./results/exapmle_video` and save all results in it. Please see available arguments in the scripts.
 
 
+## Evaluation
+You can run inference and evaluation from scratch on EMDB as follow.
 
-## Training and evaluation
-Code will come soon ...
+```bash
+# Inference and evaluation (saves results in "results/emdb")
+bash scripts/emdb/run.sh
+```
+
+You can also download our saved results [here](https://drive.google.com/drive/folders/1ghLfoFpaoi1SHnYJSM1iaOFzetwLkHD8?usp=sharing), skipping the inference, and run evaluation directly as follow.
+```bash
+# Evaluation only 
+python scripts/emdb/run_eval.py --split 2 --input_dir "results/emdb"
+```
+
+
+
+## Training 
+Sorry for the delay, but we may release an updated version. 
 </br><br>
 
 
