@@ -9,6 +9,7 @@ Official implementation for the paper: \
 <img src="https://github.com/yufu-wang/tram/assets/26578575/e857366a-4b51-42ff-bd16-07d800455015" width="550">
 
 ## Updates
+- [2025/02] Add training code and preprocessed data.
 - [2025/02] Update with better gravity & floor prediction. Add EMDB evaluation.
 - [2024/04] Initial release.
 
@@ -74,8 +75,18 @@ python scripts/emdb/run_eval.py --split 2 --input_dir "results/emdb"
 
 
 ## Training 
-Sorry for the delay, but we may release an updated version. 
-</br><br>
+**Data**. We provide the preprocessed data (e.g. crops) and annotations [HERE](https://drive.google.com/drive/folders/1kTrsfZRfWjZOnwNn-5OOyvmVCCXoGBUG?usp=share_link), except for [BEDLAM](https://bedlam.is.tue.mpg.de) (30fps). Please download our preprocessed data and edit **data_config.py** to point to the right paths. For BEDLAM, please download the 30fps version, and use **scripts/crop_datasets.py** to process it to the correct format. Please submit an issue if you run into troubles in this step.
+
+**Checkpoint**. Run this command to download the HMR2b checkpoint as our initialization.
+```bash
+bash scripts/download_pretrain.sh
+```
+
+**Training**.
+```bash
+python train.py --cfg configs/config_vimo.yaml
+```
+Results will be save under **results/EXP_NAME**. 
 
 
 ## Acknowledgements

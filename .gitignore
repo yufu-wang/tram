@@ -4,7 +4,9 @@
 data/pretrain/*.pth
 data/pretrain/*.pth.tar
 data/pretrain/*.ckpt
+data/pretrain/*/*.ckpt
 data/smpl/SMPL_*.pkl
+data/*.pkl
 *.mov
 *.mp4
 example_video/
