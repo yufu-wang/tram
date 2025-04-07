@@ -75,7 +75,7 @@ python scripts/emdb/run_eval.py --split 2 --input_dir "results/emdb"
 
 
 ## Training 
-**Data**. We provide the preprocessed data (e.g. crops) and annotations [HERE](https://drive.google.com/drive/folders/1kTrsfZRfWjZOnwNn-5OOyvmVCCXoGBUG?usp=share_link), except for [BEDLAM](https://bedlam.is.tue.mpg.de) (30fps). Please download our preprocessed data and edit **data_config.py** to point to the right paths. For BEDLAM, please download the 30fps version, and use **scripts/crop_datasets.py** to process it to the correct format. Please submit an issue if you run into troubles in this step.
+**Data**. We provide the preprocessed data (e.g. crops) and annotations [HERE](https://drive.google.com/drive/folders/1kTrsfZRfWjZOnwNn-5OOyvmVCCXoGBUG?usp=share_link), except for [BEDLAM](https://bedlam.is.tue.mpg.de) (30fps). Please download our preprocessed data and edit **data_config.py** to point to the right paths. For BEDLAM, please download the 30fps version (e.g. the mp4), and use **scripts/extract_bedlam_jpg.py** and **scripts/crop_datasets.py** to process it to the correct format. Please submit an issue if you run into troubles in this step.
 
 **Checkpoint**. Run this command to download the HMR2b checkpoint as our initialization.
 ```bash
