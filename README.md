@@ -6,7 +6,7 @@ Official implementation for the paper: \
 
 <img src="data/teaser.jpg" width="700">
 
-<img src="https://github.com/yufu-wang/tram/assets/26578575/e857366a-4b51-42ff-bd16-07d800455015" width="550">
+https://github.com/yufu-wang/tram/assets/26578575/e857366a-4b51-42ff-bd16-07d800455015
 
 ## Updates
 - [2025/02] Add training code and preprocessed data.
